@@ -163,7 +163,8 @@ def _cleanup_ray_experiments(args):
         if experiment != args.experimentname:
             continue
         experiment_dir = os.path.join('raydata', experiment)
-        for runname in os.listdir(experiment_dir):
+        experiment_subdir = (f.name for f in os.scandir(experiment_dir) if f.is_dir())
+        for runname in experiment_subdir:
             rundir = os.path.join(experiment_dir, runname,
                                   'logs',
                                   args.experimentname)
