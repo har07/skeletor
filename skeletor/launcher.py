@@ -104,13 +104,13 @@ def _compute_resources(args):
     return {'cpu': cpu, 'gpu': gpu}
 
 
-def _ray_experiment(experiment_fn, args, config, status_reporter):
+def _ray_experiment(experiment_fn, args, config):
     """ This is the actor that will start the track trial """
     for k, v in config.items():
         setattr(args, k, v)
-    status_reporter(timesteps_total=0, done=0)
+    ray.tune.report(timesteps_total=0, done=0)
     _experiment(experiment_fn, args)
-    status_reporter(timesteps_total=1, done=1)
+    ray.tune.report(timesteps_total=1, done=1)
 
 
 def _launch_ray_experiments(experiment_fn, args):
@@ -124,8 +124,8 @@ def _launch_ray_experiments(experiment_fn, args):
     else:
         ray.init(num_gpus=args.self_host)
 
-    def _real_ray_exp(config, status_reporter):
-        _ray_experiment(experiment_fn, args, config, status_reporter)
+    def _real_ray_exp(config, checkpoint_dir=None):
+        _ray_experiment(experiment_fn, args, config)
     register_trainable('ray_experiment', _real_ray_exp)
 
     with open(args.config) as f:
@@ -135,7 +135,7 @@ def _launch_ray_experiments(experiment_fn, args):
     experiment_setting = {
         args.experimentname: {
             'run': 'ray_experiment',
-            'trial_resources': resources,
+            'resources_per_trial': resources,
             'stop': {
                 'done': 1
             },
@@ -146,8 +146,7 @@ def _launch_ray_experiments(experiment_fn, args):
 
     try:
         run_experiments(experiment_setting,
-                        server_port=int(args.server_port),
-                        with_server=True)
+                        server_port=int(args.server_port))
     except ray.tune.error.TuneError as e:
         print('swalling tune error: {}'.format(e))
 
